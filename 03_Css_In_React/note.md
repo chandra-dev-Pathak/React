@@ -2,8 +2,6 @@
 
 This document five different ways to apply CSS in a React project. Each method includes a definition, usage example, advantages, and when to use it.
 
----
-
 ## 1. Normal CSS File (`.css`)
 
 ### What it is
@@ -40,8 +38,6 @@ export default function App() {
 
 * Small projects
 * Styles shared by many components
-
----
 
 ## 2. Inline CSS
 
@@ -109,8 +105,6 @@ export default function Button() {
 * Conditional or animated inline styles
 * When hover or active states need logic
 
----
-
 ## 4. Styled Components (CSS-in-JS)
 
 ### What it is
@@ -158,8 +152,6 @@ export default function App() {
 * Reusable UI components
 * Theming needed
 
----
-
 ## 5. CSS Modules (`filename.module.css`)
 
 ### What it is
@@ -197,8 +189,6 @@ export default function Button() {
 * Component-level styling
 * Projects that need scoped CSS without extra library
 
----
-
 ## Summary Table
 
 Method           |File Type          | Scoped          |Library Needed|Best For                                
@@ -208,5 +198,3 @@ Inline CSS       |Inside JSX         | Yes (to element)|No            |Quick one
 Object Inline CSS|JS object          | Yes (to element)|No            |Conditional and hover logic             
 Styled Components|JS template literal| Yes             |Yes           |Reusable styled UI components           
 CSS Modules      |.module.css        | Yes             |No            |Component scoped CSS without extra setup
-
----
