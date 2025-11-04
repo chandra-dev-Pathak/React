@@ -1,0 +1,40 @@
+import { useState } from "react";
+
+export default function Obj_Inline_CSS() {
+
+
+    const [hover, setHover] = useState(false);
+
+    let btn = {
+        backgroundColor: hover ? "#ffffff" : "pink",
+        border: hover ? "1px solid #ff4867" : "1px solid white",
+        borderRadius: "10px",
+        color: hover ? "pink" : "white",
+        letterSpacing: "1px",
+        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        fontWeight: "bold",
+        padding: "10px 20px",
+        boxShadow: "1px 2px 2px #ff526f",
+        cursor: "pointer",
+        transition: "0.3s"
+    }
+    let box = {
+        width: "fit-content",
+        backgroundColor: "gray",
+        boxShadow: "1px 1px 3px 2px #343434",
+        padding: "50px",
+        borderRadius: "20px"
+    }
+
+    return (
+        <div style={box}>
+            <button
+                style={btn}
+                onMouseEnter={() => setHover(true)}
+                onMouseLeave={() => setHover(false)}
+            >
+                save me
+            </button>
+        </div >
+    )
+}
