@@ -523,3 +523,508 @@ function Button(props) {
   const { label, onClick } = props;
 }
 ```
+
+**Different Types of Props in React**
+
+Props are not limited to just strings or numbers — in React, you can pass almost any valid JavaScript data type as props.
+
+## 1. String Props
+
+```jsx
+<Msg text="Hello" />
+
+function Msg({ text }) {
+  return <p>{text}</p>;
+}
+```
+
+* Strings must be written inside quotes `" "`
+
+## 2. Number Props
+
+```jsx
+<Count value={10} />
+
+function Count({ value }) {
+  return <h2>{value}</h2>;
+}
+```
+
+* Numbers do **not** need quotes
+* `{10}` correct
+* `"10"` will be treated as a string
+
+## 3. Boolean Props
+
+```jsx
+<Button disabled={true} />
+// OR short-hand
+<Button disabled />
+
+function Button({ disabled }) {
+  return <button disabled={disabled}>Click</button>;
+}
+```
+* `true` / `false` must be inside `{}`
+
+## 4. Array Props
+
+```jsx
+<List items={["Apple", "Banana", "Mango"]} />
+
+function List({ items }) {
+  return (
+    <ul>
+      {items.map(item => <li key={item}>{item}</li>)}
+    </ul>
+  );
+}
+```
+* Useful for lists (menus, todos, etc.)
+
+## 5. Object Props
+
+```jsx
+<User info={{ name: "Amit", age: 21 }} />
+
+function User({ info }) {
+  return <p>{info.name} is {info.age} years old</p>;
+}
+```
+
+* Objects must be wrapped in `{}`
+* Good for grouped data
+
+## 6. Function as Props (Very Important)
+
+```jsx
+function App() {
+  const sayHi = () => alert("Hi!");
+
+  return <Button onClick={sayHi} />;
+}
+
+function Button({ onClick }) {
+  return <button onClick={onClick}>Click</button>;
+}
+```
+
+* Used for event handling, callbacks, and lifting state up
+* One of the **most used** prop types in React
+
+## 7. Component as Prop (Advanced but Useful)
+
+```jsx
+<Modal footer={<Button />} />
+
+function Modal({ footer }) {
+  return (
+    <div className="modal">
+      <h2>Modal Content</h2>
+      {footer}
+    </div>
+  );
+}
+```
+
+* You can pass entire JSX / component as a prop
+* Used in UI libraries, modals, layouts
+
+## 8. Mixed Props Example
+
+```jsx
+<Product
+  title="iPhone 15"
+  price={899}
+  tags={["Mobile", "Apple"]}
+  details={{ color: "Black", storage: "128GB" }}
+  onBuy={() => alert("Order Placed!")}
+  actionButton={<button>Buy Now</button>}
+/>
+```
+* All valid props in one example
+
+**------- Function as Props -----** 
+
+This is the most powerful and important concept in React because it enables:
+
+* Event handling
+* Callback communication
+* Lifting state up
+* Parent → Child and Child → Parent interaction
+
+If you understand this, you understand *how React apps actually work*.
+
+## 1. Why do we pass functions as props?
+
+Because:
+
+* The **child component only displays UI**
+* The **parent component controls logic, state, and data**
+
+So if the child wants to trigger something (like button click, form submit, etc.),
+it cannot change state directly — it must **call a function given by the parent**.
+
+That function is passed **as a prop**.
+
+## 2. Basic Example
+
+### Parent Component
+
+```jsx
+function App() {
+  const sayHi = () => alert("Hi!");
+
+  return <Button onClick={sayHi} />;
+}
+```
+
+### Child Component
+
+```jsx
+function Button({ onClick }) {
+  return <button onClick={onClick}>Click Me</button>;
+}
+```
+
+- Parent created the function
+- Child just uses it
+- When button is clicked → parent’s function runs
+
+This is called **Callback via Props**
+
+## 3. Lifting State Up (Very Common Pattern)
+
+When multiple children need the same data → the state is moved to parent.
+
+### Parent (stores state + logic)
+
+```jsx
+function App() {
+  const [count, setCount] = useState(0);
+
+  const increment = () => setCount(count + 1);
+
+  return (
+    <>
+      <h1>{count}</h1>
+      <CounterButton onIncrement={increment} />
+    </>
+  );
+}
+```
+
+### Child (only UI)
+
+```jsx
+function CounterButton({ onIncrement }) {
+  return <button onClick={onIncrement}>Add +1</button>;
+}
+```
+
+- Child cannot change state
+- Child only calls the function
+- Parent updates the state
+
+## Interview Question
+
+**Q: Why do we pass functions as props?**
+**A:** To allow child components to trigger actions or update state that is stored in the parent.
+
+
+**--------children Prop (The Special Prop in React)----------**
+
+### 1. What is the `children` Prop?
+
+`children` is a special built-in prop in React. It contains whatever JSX you write between a component’s opening and closing tag.
+
+```jsx
+function Card({ children }) {
+  return <div className="card">{children}</div>;
+}
+
+<Card>
+  <h1>Hello</h1>
+  <p>This is inside card</p>
+</Card>
+```
+
+React automatically passes this as:
+
+```js
+props = {
+  children: (
+    <>
+      <h1>Hello</h1>
+      <p>This is inside card</p>
+    </>
+  )
+}
+```
+
+So `children` itself is a prop.
+
+### 2. Layout Example
+
+```jsx
+function Layout({ children }) {
+  return (
+    <div className="layout">
+      <header>My App</header>
+      {children}
+      <footer>© 2024</footer>
+    </div>
+  );
+}
+
+<Layout>
+  <h2>Home Page</h2>
+</Layout>
+
+<Layout>
+  <p>About Page Content</p>
+</Layout>
+```
+
+Same layout, different content.
+
+### 3. Modal Example
+
+```jsx
+function Modal({ children }) {
+  return <div className="modal">{children}</div>;
+}
+
+<Modal>
+  <h2>Warning!</h2>
+  <p>Are you sure you want to continue?</p>
+</Modal>
+```
+
+`children` lets you pass complete JSX, not just text.
+
+### 4. Using props + children together
+
+```jsx
+function Alert({ type, children }) {
+  return <div className={`alert ${type}`}>{children}</div>;
+}
+
+<Alert type="success">Data saved successfully!</Alert>
+<Alert type="error">Something went wrong!</Alert>
+```
+
+### 5. Important Notes
+
+* `children` is a built‑in prop
+* It **cannot be renamed** (must be `children` only)
+* You receive it by `props.children` or destructuring `{ children }`
+
+---
+
+### 6. Interview Question
+
+**Q:** What is the `children` prop in React?
+**A:** It is a special prop that allows you to pass JSX between the opening and closing tags of a component.
+
+
+### Part-8 — defaultProps (When Parent Does NOT Pass a Prop)
+
+Sometimes we expect props in a component, but the parent forgets to pass them, which can cause errors or break the UI.
+To avoid this, React provides **default props**, meaning if a prop is missing, it will use the default value.
+
+### Why do we need default props?
+
+```jsx
+function User({ name }) {
+  return <h2>User: {name}</h2>;
+}
+
+<User name="Ali" />   // OK
+<User />               // ERROR (name = undefined)
+```
+
+### 1. Default Props — Old Method (React < 18)
+
+```jsx
+function User({ name }) {
+  return <h2>User: {name}</h2>;
+}
+
+User.defaultProps = {
+  name: "Guest",
+};
+```
+
+Now:
+
+```jsx
+<User />   // Output: User: Guest
+```
+
+### 2. Default Props — New Method (With Destructuring)
+
+```jsx
+function User({ name = "Guest" }) {
+  return <h2>User: {name}</h2>;
+}
+```
+
+Now even if parent passes nothing:
+
+```jsx
+<User />          // Output: User: Guest
+<User name="Ali" />  // Output: User: Ali
+```
+
+✔ Cleaner and recommended in modern React
+
+### Multiple default props
+
+```jsx
+function Profile({ name = "Unknown", age = 0, city = "N/A" }) {
+  return (
+    <p>
+      {name} — {age} years old — {city}
+    </p>
+  );
+}
+```
+
+### Default props with children
+
+```jsx
+function Box({ children = "No content" }) {
+  return <div className="box">{children}</div>;
+}
+
+<Box />                 // Output: No content
+<Box> Hello World </Box> // children replace default
+```
+
+### Default props + normal props + children together
+
+```jsx
+function Button({ text = "Click Me", type = "primary", children }) {
+  return <button className={type}>{children || text}</button>;
+}
+```
+
+# PropTypes in React (Props Validation) – React 18+ Version
+
+## 1. Why PropTypes?
+
+React does **not** validate prop types by default. That means even if you pass a wrong value, React will not throw an error.
+
+```jsx
+<User name={123} /> // React accepts it, no error
+```
+
+This can lead to bugs in real-world apps.
+To avoid this, we use **PropTypes** – runtime type checking for props.
+
+## 2. Installing PropTypes (React 18+)
+
+PropTypes is **not built-in** anymore. You must install it manually.
+
+```bash
+npm install prop-types
+```
+
+Then import it:
+
+```js
+import PropTypes from "prop-types";
+```
+
+## 3. Basic Example
+
+```jsx
+import PropTypes from "prop-types";
+
+function User({ name, age }) {
+  return <p>{name} - {age}</p>;
+}
+
+User.propTypes = {
+  name: PropTypes.string.isRequired,
+  age: PropTypes.number
+};
+```
+
+* Valid
+
+```jsx
+<User name="Ravi" age={21} />
+```
+
+* Invalid (Console Warning)
+
+```jsx
+<User name={100} age="Hello" />
+```
+
+Console Warning:
+
+```
+Warning: Failed prop type: Invalid prop `name` of type `number` supplied to `User`, expected `string`.
+```
+
+## 4. `isRequired`
+
+```jsx
+User.propTypes = {
+  name: PropTypes.string.isRequired, // must be passed
+  age: PropTypes.number              // optional
+};
+```
+If missing required prop:
+
+Warning: Failed prop type: The prop `name` is marked as required...
+
+## 5. Supported PropTypes
+
+| Type        | Example                                                            |
+| ----------- | ------------------------------------------------------------------ |
+| string      | PropTypes.string                                                   |
+| number      | PropTypes.number                                                   |
+| bool        | PropTypes.bool                                                     |
+| array       | PropTypes.array                                                    |
+| object      | PropTypes.object                                                   |
+| func        | PropTypes.func                                                     |
+| element     | PropTypes.element                                                  |
+| node        | Anything renderable (string, number, JSX, etc.)                    |
+| arrayOf()   | PropTypes.arrayOf(PropTypes.number)                                |
+| objectOf()  | PropTypes.objectOf(PropTypes.string)                               |
+| oneOf()     | PropTypes.oneOf(["small", "medium", "large"])                      |
+| oneOfType() | PropTypes.oneOfType([PropTypes.string, PropTypes.number])          |
+| shape()     | PropTypes.shape({ name: PropTypes.string, age: PropTypes.number }) |
+
+## 6. Example: `arrayOf` + `shape`
+
+```jsx
+UserList.propTypes = {
+  users: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      name: PropTypes.string.isRequired
+    })
+  )
+};
+```
+
+## 7. Function as Prop
+
+```jsx
+Button.propTypes = {
+  onClick: PropTypes.func.isRequired
+};
+```
+
+## 8. Validating `children`
+
+```jsx
+Card.propTypes = {
+  children: PropTypes.node
+};
+```
