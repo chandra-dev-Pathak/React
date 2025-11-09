@@ -1028,3 +1028,295 @@ Card.propTypes = {
   children: PropTypes.node
 };
 ```
+
+**--------Props vs State--------**
+
+## What are Props?
+
+- Props = Data passed from parent to child
+- Parent component send data to → child component
+- Child can read data, but can't change data
+- Props always read-only 
+
+```jsx
+function App() {
+  return <Welcome name="Raj" />;
+}
+
+function Welcome({ name }) {
+  return <h1>Hello {name}</h1>;
+}
+```
+- App = Parent
+- Welcome = Child
+- name="Raj" = Prop
+
+## What is State?
+
+- State = Data owned and managed by the component itself
+- Component maintains its own internal data
+- We change Them (using setState or setX)
+- The component re-renders as soon as changes occur.
+
+```jsx
+import { useState } from "react";
+
+function Counter() {
+  const [count, setCount] = useState(0); // state
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>Add</button>
+    </div>
+  );
+}
+```
+
+- count = State variable
+- setCount = Function to update it
+- Change → re-render → new UI
+
+* Rule:-
+
+- Props = External data
+- State = Internal data
+
+## How Components Re-render When Props Change in React
+
+Understanding **how React decides to re-render a component** is one of the most important concepts behind React’s performance and behavior.
+
+This process is known as **Reconciliation** — how React compares the old and new virtual DOM trees to decide what needs to be updated.
+
+## The Core React Rendering Rule
+
+A React component **re-renders** when:
+
+1. Its **state changes**
+2. Its **props change**
+3. Or its **parent re-renders**
+
+## 1️ When Props Change
+
+Whenever a parent component passes **new props** to its child, React will **re-render** that child.
+
+### Example
+
+```jsx
+function App() {
+  const [name, setName] = React.useState("Raj");
+
+  return (
+    <>
+      <button onClick={() => setName("Amit")}>Change Name</button>
+      <Child name={name} />
+    </>
+  );
+}
+
+function Child({ name }) {
+  console.log("Child rendered");
+  return <h2>Hello {name}</h2>;
+}
+```
+
+### What happens:
+
+1. Initially, `name = "Raj"` → both `App` and `Child` render.
+2. When the button is clicked → `setName("Amit")` updates the state.
+3. Props of `<Child>` change from `"Raj"` → `"Amit"`.
+4. React detects new props and **re-renders the child**.
+
+## 2️ When Parent Re-renders (Even if Props Are the Same)
+
+Sometimes, the **parent re-renders** (because its own state changes), and even though the child props are the same, the child **still re-renders**.
+
+### Example
+
+```jsx
+function App() {
+  const [count, setCount] = React.useState(0);
+
+  return (
+    <>
+      <button onClick={() => setCount(count + 1)}>+</button>
+      <Child name="Ravi" />
+    </>
+  );
+}
+
+function Child({ name }) {
+  console.log("Child rendered");
+  return <h2>{name}</h2>;
+}
+```
+
+### Explanation:
+
+* Every time you click the button, `App` re-renders because its state `count` changes.
+* Even though `<Child>` always receives the same prop (`"Ravi"`), React will still **re-execute** the child component function to check for changes.
+* This happens because React must verify if the child props are still the same or not.
+
+> Without `React.memo()`, React re-renders all children when the parent re-renders — even if props didn’t change.
+
+## 3️ React Uses **Shallow Comparison** for Props
+
+React does **not perform a deep comparison** of props.
+It only checks **surface-level equality** (shallow comparison).
+
+### Example 1: Primitive Props
+
+```jsx
+<Child number={5} />  // old render
+<Child number={5} />  // new render → SAME → no re-render
+```
+
+For **primitive values** (`string`, `number`, `boolean`), React can easily check equality.
+If the value is the same → it skips the re-render.
+
+### Example 2: Object Props
+
+Objects are **reference types** in JavaScript.
+Even if two objects have the same value, their memory reference is different each time.
+
+```jsx
+function App() {
+  const [count, setCount] = React.useState(0);
+
+  return (
+    <>
+      <button onClick={() => setCount(count + 1)}>+</button>
+      <Child data={{ name: "Raj" }} />
+    </>
+  );
+}
+
+function Child({ data }) {
+  console.log("Child rendered");
+  return <h3>{data.name}</h3>;
+}
+```
+
+Each render creates a new object `{ name: "Raj" }` in memory.
+
+So React compares:
+
+```js
+oldProps.data === newProps.data // false
+```
+
+Because they’re different references → React assumes the prop changed → **Child re-renders**.
+
+### Example 3: Function Props
+
+Functions are also reference types, so a new function reference on each render will cause re-rendering.
+
+```jsx
+function App() {
+  const [count, setCount] = React.useState(0);
+
+  const handleClick = () => alert("Clicked!");
+
+  return (
+    <>
+      <button onClick={() => setCount(count + 1)}>+</button>
+      <Button onClick={handleClick} />
+    </>
+  );
+}
+
+function Button({ onClick }) {
+  console.log("Button rendered");
+  return <button onClick={onClick}>Click</button>;
+}
+```
+
+Each time `App` re-renders, `handleClick` is a **new function** reference.
+
+So React compares:
+
+```js
+oldProps.onClick === newProps.onClick // false
+```
+
+* Child re-renders again.
+
+Later, you can prevent this behavior using **`useCallback()`**, which memoizes the function reference.
+
+## 4️ Parent Re-render → Child Re-checks Props
+
+Even if props remain unchanged, when a parent re-renders, React must **call the child function again** to verify if props changed.
+
+Example:
+
+```jsx
+function App() {
+  const [count, setCount] = React.useState(0);
+
+  return (
+    <>
+      <button onClick={() => setCount(count + 1)}>Add</button>
+      <Child name="Ravi" />
+    </>
+  );
+}
+
+function Child({ name }) {
+  console.log("Child rendered");
+  return <h2>{name}</h2>;
+}
+```
+
+Every time `count` changes, `App` re-renders, and React calls `Child()` again to check the props.
+If `React.memo()` is not used, React **re-renders child components by default**.
+
+---
+
+## Summary — React Reconciliation Logic
+
+React’s internal comparison is roughly like this:
+
+```js
+if (oldProps === newProps) {
+  // skip re-render
+} else {
+  // re-render
+}
+```
+
+But this comparison is **shallow** — meaning React only checks if the reference or primitive values changed.
+
+---
+
+## Final Summary Table
+
+| Case                      | Example Prop    | Re-render? | Reason                 |
+| ------------------------- | --------------- | ---------- | ---------------------- |
+| Props changed (primitive) | `5 → 6`         | yes        | New value detected     |
+| Props same (primitive)    | `"Raj" → "Raj"` | no         | Shallow equal          |
+| Props is object/function  | `{a:1} → {a:1}` | yes        | New reference          |
+| Parent re-rendered        | `"Ravi"` (same) | yes        | Parent caused re-check |
+
+## How React Reconciliation Works (Behind the Scenes)
+
+React maintains two versions of the Virtual DOM:
+
+* **Old Virtual DOM** (previous render)
+* **New Virtual DOM** (current render)
+
+On each render, React:
+
+1. Compares the **new** Virtual DOM with the **old** one.
+2. If it finds differences → updates only those parts (DOM diffing).
+3. If not → skips updating that section.
+
+This is called **Reconciliation** — React’s heart and soul for optimizing performance.
+
+## Final Overview
+
+* React re-renders when **state** or **props** change.
+* It compares **old props** and **new props** using **shallow comparison**.
+* **Primitive props** (string, number, boolean) → easy to compare.
+* **Objects, arrays, and functions** → new references every render → re-render triggered.
+* Even if props don’t change, **parent re-render** can cause **child re-render** unless optimized with `React.memo()` or `useCallback()`.
+
