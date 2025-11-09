@@ -1320,3 +1320,165 @@ This is called **Reconciliation** — React’s heart and soul for optimizing pe
 * **Objects, arrays, and functions** → new references every render → re-render triggered.
 * Even if props don’t change, **parent re-render** can cause **child re-render** unless optimized with `React.memo()` or `useCallback()`.
 
+**-----------Shallow Comparison vs Deep Comparison-----------**
+
+* How React compares props and why “React.memo” sometimes works or fails
+
+## What is Comparison?
+
+In every render, React checks:
+
+* Have the props changed? → Component re-renders
+* Are they the same? → React skips rendering
+
+But **how** does React check this?
+
+React performs **shallow comparison** (surface-level check), not **deep comparison** (nested check).
+
+## What is Shallow Comparison?
+
+A shallow comparison only checks the top-level keys of an object. It does not go deep into nested structures.
+
+```js
+const obj1 = { a: 1, b: 2 };
+const obj2 = { a: 1, b: 2 };
+
+console.log(obj1 === obj2); // false (different references)
+```
+
+Even though both look identical, they are stored in different memory locations, so React considers them different.
+
+## What is Deep Comparison?
+
+Deep comparison checks every nested key-value pair.
+
+```js
+function deepEqual(obj1, obj2) {
+  return JSON.stringify(obj1) === JSON.stringify(obj2);
+}
+```
+
+This ensures that the inner values are also identical. However, React does **not** do this — because it’s too slow.
+
+## Why React Only Uses Shallow Comparison
+
+**Performance!**
+Deep comparison is very expensive and slows down rendering significantly.
+
+React keeps rendering fast by only checking **references** (shallow comparison).
+
+## Example: Shallow Comparison in Action
+
+```js
+function App() {
+  const [num, setNum] = React.useState(0);
+  const data = { value: 10 };
+
+  return (
+    <>
+      <button onClick={() => setNum(num + 1)}>+</button>
+      <Child data={data} />
+    </>
+  );
+}
+
+function Child({ data }) {
+  console.log("Child rendered");
+  return <p>{data.value}</p>;
+}
+```
+
+Every time `App` re-renders, a new `{ value: 10 }` object is created.
+
+React compares:
+
+```js
+oldProps.data === newProps.data; // false
+```
+
+Result: `Child` re-renders every time
+
+## Fixing It with React.memo (Shallow Comparison Built-in)
+
+`React.memo` is a Higher-Order Component (HOC) that performs shallow comparison automatically on props.
+
+```js
+const Child = React.memo(function Child({ data }) {
+  console.log("Child rendered");
+  return <p>{data.value}</p>;
+});
+```
+
+React checks:
+
+> “Have the props’ references changed?”
+
+If not → skip render
+If yes → re-render
+
+## Example: React.memo Fails with New Object Reference
+
+```js
+function App() {
+  const [num, setNum] = React.useState(0);
+
+  return (
+    <>
+      <button onClick={() => setNum(num + 1)}>+</button>
+      <Child data={{ value: 10 }} /> {/* new object each time */}
+    </>
+  );
+}
+
+const Child = React.memo(({ data }) => {
+  console.log("Child rendered");
+  return <p>{data.value}</p>;
+});
+```
+
+Each render creates a **new reference** for `{ value: 10 }`, so React treats it as a change.
+
+Result: `Child` re-renders every time
+
+## Correct Way: Stable Reference Using `useMemo`
+
+```js
+function App() {
+  const [num, setNum] = React.useState(0);
+  const data = React.useMemo(() => ({ value: 10 }), []); // stable reference
+
+  return (
+    <>
+      <button onClick={() => setNum(num + 1)}>+</button>
+      <Child data={data} />
+    </>
+  );
+}
+
+const Child = React.memo(({ data }) => {
+  console.log("Child rendered");
+  return <p>{data.value}</p>;
+});
+```
+
+Now React checks:
+
+```js
+oldProps.data === newProps.data; // true (same reference)
+```
+
+Result: React skips rendering
+
+## Interview Insights
+
+**Q:** What type of comparison does React.memo or PureComponent use?
+**A:** Shallow comparison of props and state.
+
+**Q:** Why doesn’t React use deep comparison?
+**A:** Deep comparison is too slow and impacts performance.
+
+
+## Real-World Tips
+
+* Always use **`useMemo`** or **`useCallback`** to stabilize object, array, or function props.
+* Otherwise, even **React.memo** won’t prevent re-rendering 
