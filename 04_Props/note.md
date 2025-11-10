@@ -13,6 +13,233 @@ Because React components are reusable.
 If we want different data each time, we send it through props.
 
 ---
+# Part 4 — Understanding React.memo()
+
+## What is React.memo()?
+
+`React.memo()` is a higher-order component (HOC) that wraps your component and tells React:
+
+> "If my props didn’t change, then don’t bother re-rendering me."
+
+### Example
+
+```jsx
+const MyChild = React.memo(function MyChild({ name }) {
+  console.log("Child rendered");
+  return <h2>Hello {name}</h2>;
+});
+```
+
+Now, whenever `MyChild` receives the same props as before (checked shallowly), React skips re-rendering and reuses the previous output.
+
+---
+
+## How React.memo actually checks props
+
+React performs a **shallow comparison** between old and new props:
+
+```js
+if (oldProps === newProps) {
+  // skip re-render
+} else {
+  // re-render
+}
+```
+
+Objects, arrays, and functions are compared **by reference**, not by value.
+
+So even if two objects look identical (`{a:1}` and `{a:1}`), React treats them as different due to different memory references.
+
+---
+
+## Case 1 — Primitive Props (Works Perfectly)
+
+```jsx
+function Parent() {
+  const [count, setCount] = useState(0);
+  return (
+    <>
+      <button onClick={() => setCount(c => c + 1)}>+</button>
+      <Child name="Raj" age={20} isActive={true} />
+    </>
+  );
+}
+
+const Child = React.memo(({ name, age, isActive }) => {
+  console.log("Child rendered");
+  return <p>{name} - {age} - {isActive ? "Yes" : "No"}</p>;
+});
+```
+
+### What happens:
+
+* `name`, `age`, and `isActive` are **primitive values**.
+* Each re-render, they have the same reference.
+* React.memo compares and sees no difference → **Child not re-rendered**.
+
+✅ **Result:** Works perfectly with primitive props.
+
+---
+
+## Case 2 — Inline Object / Array / Function Props (Fails)
+
+```jsx
+function Parent() {
+  const [count, setCount] = useState(0);
+  return (
+    <>
+      <button onClick={() => setCount(c => c + 1)}>+</button>
+      <Child data={{ name: "Raj" }} />
+    </>
+  );
+}
+
+const Child = React.memo(({ data }) => {
+  console.log("Child rendered");
+  return <h3>{data.name}</h3>;
+});
+```
+
+### What happens:
+
+* Every render creates a new object `{ name: "Raj" }`.
+* React compares references:
+
+  ```js
+  oldProps.data === newProps.data // false
+  ```
+* React thinks props changed → Child re-renders.
+
+⚠️ **Result:** Fails for inline object, array, or function props.
+
+---
+
+## Case 3 — Object Prop Held in Variable (Works with useMemo)
+
+```jsx
+function Parent() {
+  const [count, setCount] = useState(0);
+  const data = useMemo(() => ({ name: "Raj" }), []); // stable reference
+
+  return (
+    <>
+      <button onClick={() => setCount(c => c + 1)}>+</button>
+      <Child data={data} />
+    </>
+  );
+}
+
+const Child = React.memo(({ data }) => {
+  console.log("Child rendered");
+  return <h3>{data.name}</h3>;
+});
+```
+
+### What happens:
+
+* `data` has a **stable reference** due to `useMemo`.
+* React compares references → equal → **skips re-render**.
+
+✅ **Result:** Works perfectly with memoized object.
+
+---
+
+## Case 4 — Function Prop Reference (Same Problem)
+
+```jsx
+function Parent() {
+  const [count, setCount] = useState(0);
+
+  const handleClick = useCallback(() => alert("Clicked"), []);
+
+  return (
+    <>
+      <button onClick={() => setCount(c => c + 1)}>+</button>
+      <Child onClick={handleClick} />
+    </>
+  );
+}
+
+const Child = React.memo(({ onClick }) => {
+  console.log("Child rendered");
+  return <button onClick={onClick}>Click</button>;
+});
+```
+
+### What happens:
+
+* `handleClick` is memoized using `useCallback`.
+* Stable reference ensures React.memo skips re-render.
+
+✅ **Result:** Works perfectly when using `useCallback`.
+
+---
+
+## Summary Table — React.memo Behavior
+
+| Prop Type                           | Passed Inline | Held in Variable | Memoized              | Re-render? | Why                                |
+| ----------------------------------- | ------------- | ---------------- | --------------------- | ---------- | ---------------------------------- |
+| Primitive (string, number, boolean) | ✅ Works       | ✅ Works          | —                     | ❌ No       | Same value reference               |
+| Object / Array                      | ❌ Fails       | ❌ Fails          | ✅ Works (useMemo)     | ❌ No       | useMemo gives stable reference     |
+| Function                            | ❌ Fails       | ❌ Fails          | ✅ Works (useCallback) | ❌ No       | useCallback gives stable reference |
+
+---
+
+## Quick Concept Recap
+
+* `React.memo` compares previous vs new props using **shallow equality**.
+* "Same" means **exact same reference (=== true)**.
+* **Primitives** are compared by value → usually stable.
+* **Objects, arrays, and functions** are reference types → new reference breaks memo.
+
+---
+
+## Pro Tips
+
+### Use React.memo only when:
+
+* Component has expensive render logic.
+* Props are stable between renders.
+
+### Avoid:
+
+* Wrapping every component in `React.memo` (adds overhead).
+
+### Combine with Hooks:
+
+* Use `React.memo` + `useMemo` + `useCallback` together for stable props.
+
+### For Deep Comparison (Rare Case):
+
+```jsx
+const MyComp = React.memo(Component, (prevProps, nextProps) => deepEqual(prevProps.data, nextProps.data));
+```
+
+Use deep comparison only when truly necessary—it can be slow.
+
+---
+
+## Mini Playground Summary
+
+```jsx
+// ✅ Works: React.memo + primitive prop
+<Child name="Raj" />
+
+// ❌ Fails: inline object
+<Child data={{ name: "Raj" }} />
+
+// ✅ Works: object stabilized with useMemo
+const data = useMemo(() => ({ name: "Raj" }), []);
+<Child data={data} />
+
+// ❌ Fails: inline function
+<Child onClick={() => console.log("click")} />
+
+// ✅ Works: function stabilized with useCallback
+const onClick = useCallback(() => console.log("click"), []);
+<Child onClick={onClick} />
+```
+
 
 ## One-Way Data Flow (Important)
 
@@ -1482,3 +1709,602 @@ Result: React skips rendering
 
 * Always use **`useMemo`** or **`useCallback`** to stabilize object, array, or function props.
 * Otherwise, even **React.memo** won’t prevent re-rendering 
+
+# **Understanding React.memo()**
+
+## What is React.memo()?
+
+`React.memo()` is a higher-order component (HOC) that wraps your component and tells React:
+
+> "If my props didn’t change, then don’t bother re-rendering me."
+
+### Example
+
+```jsx
+const MyChild = React.memo(function MyChild({ name }) {
+  console.log("Child rendered");
+  return <h2>Hello {name}</h2>;
+});
+```
+
+Now, whenever `MyChild` receives the same props as before (checked shallowly), React skips re-rendering and reuses the previous output.
+
+---
+
+## How React.memo actually checks props
+
+React performs a **shallow comparison** between old and new props:
+
+```js
+if (oldProps === newProps) {
+  // skip re-render
+} else {
+  // re-render
+}
+```
+
+Objects, arrays, and functions are compared **by reference**, not by value.
+
+So even if two objects look identical (`{a:1}` and `{a:1}`), React treats them as different due to different memory references.
+
+---
+
+## Case 1 — Primitive Props (Works Perfectly)
+
+```jsx
+function Parent() {
+  const [count, setCount] = useState(0);
+  return (
+    <>
+      <button onClick={() => setCount(c => c + 1)}>+</button>
+      <Child name="Raj" age={20} isActive={true} />
+    </>
+  );
+}
+
+const Child = React.memo(({ name, age, isActive }) => {
+  console.log("Child rendered");
+  return <p>{name} - {age} - {isActive ? "Yes" : "No"}</p>;
+});
+```
+
+### What happens:
+
+* `name`, `age`, and `isActive` are **primitive values**.
+* Each re-render, they have the same reference.
+* React.memo compares and sees no difference → **Child not re-rendered**.
+
+**Result:** Works perfectly with primitive props.
+
+---
+
+## Case 2 — Inline Object / Array / Function Props (Fails)
+
+```jsx
+function Parent() {
+  const [count, setCount] = useState(0);
+  return (
+    <>
+      <button onClick={() => setCount(c => c + 1)}>+</button>
+      <Child data={{ name: "Raj" }} />
+    </>
+  );
+}
+
+const Child = React.memo(({ data }) => {
+  console.log("Child rendered");
+  return <h3>{data.name}</h3>;
+});
+```
+
+### What happens:
+
+* Every render creates a new object `{ name: "Raj" }`.
+* React compares references:
+
+  ```js
+  oldProps.data === newProps.data // false
+  ```
+* React thinks props changed → Child re-renders.
+
+**Result:** Fails for inline object, array, or function props.
+
+---
+
+## Case 3 — Object Prop Held in Variable (Works with useMemo)
+
+```jsx
+function Parent() {
+  const [count, setCount] = useState(0);
+  const data = useMemo(() => ({ name: "Raj" }), []); // stable reference
+
+  return (
+    <>
+      <button onClick={() => setCount(c => c + 1)}>+</button>
+      <Child data={data} />
+    </>
+  );
+}
+
+const Child = React.memo(({ data }) => {
+  console.log("Child rendered");
+  return <h3>{data.name}</h3>;
+});
+```
+
+### What happens:
+
+* `data` has a **stable reference** due to `useMemo`.
+* React compares references → equal → **skips re-render**.
+
+**Result:** Works perfectly with memoized object.
+
+---
+
+## Case 4 — Function Prop Reference (Same Problem)
+
+```jsx
+function Parent() {
+  const [count, setCount] = useState(0);
+
+  const handleClick = useCallback(() => alert("Clicked"), []);
+
+  return (
+    <>
+      <button onClick={() => setCount(c => c + 1)}>+</button>
+      <Child onClick={handleClick} />
+    </>
+  );
+}
+
+const Child = React.memo(({ onClick }) => {
+  console.log("Child rendered");
+  return <button onClick={onClick}>Click</button>;
+});
+```
+
+### What happens:
+
+* `handleClick` is memoized using `useCallback`.
+* Stable reference ensures React.memo skips re-render.
+
+**Result:** Works perfectly when using `useCallback`.
+
+---
+
+## Summary Table — React.memo Behavior
+
+Prop Type                          |Passed Inline|Held in Variable|Memoized           |Re-render?|Why                               
+-----------------------------------|-------------|----------------|-------------------|----------|----------------------------------
+Primitive (string, number, boolean)|Works        |Works           |                   |No        |Same value reference              
+Object / Array                     |Fails        |Fails           |Works (useMemo)    |No        |useMemo gives stable reference    
+Function                           |Fails        |Fails           |Works (useCallback)|No        |useCallback gives stable reference
+
+---
+
+## Quick Concept Recap
+
+* `React.memo` compares previous vs new props using **shallow equality**.
+* "Same" means **exact same reference (=== true)**.
+* **Primitives** are compared by value → usually stable.
+* **Objects, arrays, and functions** are reference types → new reference breaks memo.
+
+---
+
+## Pro Tips
+
+### Use React.memo only when:
+
+* Component has expensive render logic.
+* Props are stable between renders.
+
+### Avoid:
+
+* Wrapping every component in `React.memo` (adds overhead).
+
+### Combine with Hooks:
+
+* Use `React.memo` + `useMemo` + `useCallback` together for stable props.
+
+# **Understanding useCallback() in React**
+
+## What is useCallback()
+
+`useCallback()` is a React Hook that helps you memoize a function, ensuring that its reference does not change between renders unless one of its dependencies changes.
+
+In simple terms, it keeps your function's identity stable across renders.
+
+---
+
+## Syntax
+
+```javascript
+const memoizedFn = useCallback(() => {
+  // your logic
+}, [dependencies]);
+```
+
+* If the values in `[dependencies]` do not change → React returns the same function reference.
+* If any dependency changes → React creates a new function reference.
+
+---
+
+## Why do we need useCallback()
+
+Each time a parent component re-renders, all functions defined inside it are recreated (new memory reference). When such a function is passed as a prop to a memoized child component, React.memo detects it as a changed prop, causing an unnecessary re-render.
+
+---
+
+### Example — Without useCallback
+
+```javascript
+function Parent() {
+  const [count, setCount] = React.useState(0);
+
+  const handleClick = () => alert("Clicked!"); // new function on every render
+
+  console.log("Parent rendered");
+
+  return (
+    <>
+      <button onClick={() => setCount(count + 1)}>+</button>
+      <Child onClick={handleClick} />
+    </>
+  );
+}
+
+const Child = React.memo(({ onClick }) => {
+  console.log("Child rendered");
+  return <button onClick={onClick}>Child Button</button>;
+});
+```
+
+**What happens:**
+
+* `handleClick` gets recreated on every parent render.
+* React.memo compares old vs new props:
+
+```javascript
+oldProps.onClick === newProps.onClick; // false
+```
+
+React detects changed props → Child re-renders each time.
+
+---
+
+### Fix — With useCallback
+
+```javascript
+function Parent() {
+  const [count, setCount] = React.useState(0);
+
+  // useCallback fixes function reference
+  const handleClick = React.useCallback(() => alert("Clicked!"), []);
+
+  console.log("Parent rendered");
+
+  return (
+    <>
+      <button onClick={() => setCount(count + 1)}>+</button>
+      <Child onClick={handleClick} />
+    </>
+  );
+}
+
+const Child = React.memo(({ onClick }) => {
+  console.log("Child rendered");
+  return <button onClick={onClick}>Child Button</button>;
+});
+```
+
+**What happens now:**
+
+* `useCallback` memorizes the function.
+* Because dependency `[]` is empty, the reference stays the same across renders.
+
+React.memo compares props:
+
+```javascript
+oldProps.onClick === newProps.onClick; // true
+```
+
+Result: Child does **not** re-render.
+
+---
+
+## Dependency Array in useCallback
+
+If a function depends on some state, you include it in the dependency array.
+
+```javascript
+function Parent() {
+  const [count, setCount] = React.useState(0);
+
+  const handleClick = React.useCallback(() => {
+    alert(`Count is ${count}`);
+  }, [count]);
+
+  console.log("Parent rendered");
+
+  return (
+    <>
+      <button onClick={() => setCount(count + 1)}>+</button>
+      <Child onClick={handleClick} />
+    </>
+  );
+}
+```
+
+When `count` changes, the dependency changes → React recreates the function. This is expected since the function depends on `count`.
+
+---
+
+## Analogy
+
+Think of `useCallback` like a locker for your functions:
+
+* If the key (dependency array) remains the same → the function stays the same.
+* If the key changes → a new function is generated.
+
+---
+
+## Real-world Usage with React.memo
+
+`React.memo` prevents unnecessary re-renders when props are the same.
+
+But if you pass a new function on every render, the child will still re-render.
+
+`useCallback` stabilizes function references so that `React.memo` can work properly.
+
+```javascript
+// Perfect combo
+const handleClick = useCallback(() => alert("Hi"), []);
+<Child onClick={handleClick} />;
+
+// Without useCallback
+const handleClick = () => alert("Hi");
+<Child onClick={handleClick} />; // new function every render
+```
+
+---
+
+## Full Demo File — UseCallbackCase.jsx
+
+```javascript
+import React, { useState, useCallback } from "react";
+
+// Child Component
+const Child = React.memo(({ onClick }) => {
+  console.log("Child rendered");
+  return <button onClick={onClick}>Click Me</button>;
+});
+
+// Parent Component
+export default function UseCallbackCase() {
+  const [count, setCount] = useState(0);
+
+  // Stable function reference
+  const handleClick = useCallback(() => {
+    console.log("Clicked!");
+  }, []);
+
+  console.log("Parent rendered");
+
+  return (
+    <div style={{ padding: "10px", border: "1px solid gray", margin: "10px" }}>
+      <h3>Count: {count}</h3>
+      <button onClick={() => setCount(count + 1)}>Increment</button>
+      <Child onClick={handleClick} />
+    </div>
+  );
+}
+```
+
+1. Run the app
+2. Click “Increment” — only Parent re-renders
+3. Click “Click Me” — Child does not re-render because the function reference is stable
+
+If you remove `useCallback`, both Parent and Child re-render every time.
+
+---
+
+## Summary Table
+
+Case                               |useCallback Used?|Dependencies|Child Re-renders?|Why                                           
+-----------------------------------|-----------------|------------|-----------------|------------------------------------
+Function inline                    |No               |—           |Yes              |New function each render            
+Function memoized ([])             |Yes              |[]          |No               |Same function reference             
+Function depends on state          |Yes              |[state]     |Yes              |New function when dependency changes
+Function wrapped + React.memo child|Yes (combo)      |Works best  |No               |Efficient
+
+# **React useMemo()**
+
+## What is useMemo()?
+
+`useMemo()` is a React Hook that memoizes a **computed value**,
+so React doesn’t recalculate expensive logic on every render —
+unless its dependencies change.
+
+It **remembers the result of a function**, not the function itself.
+
+---
+
+## Syntax
+
+```js
+const memoizedValue = useMemo(() => {
+  return computeSomething(a, b);
+}, [a, b]);
+```
+
+* The callback `() => computeSomething(a, b)` runs **only when any dependency changes**.
+* React returns the **cached (memoized)** value otherwise.
+
+---
+
+## Why do we need useMemo()?
+
+Sometimes we have:
+
+* Heavy calculations
+* Derived values from props/state
+* Expensive loops, filters, or sorting
+
+These can slow down renders if recalculated every time.
+
+`useMemo` tells React:
+
+> “If my inputs haven’t changed, reuse the old result.”
+
+---
+
+## Example 1 — Without useMemo (Problem)
+
+```jsx
+import React, { useState } from "react";
+
+export default function WithoutUseMemo() {
+  const [count, setCount] = useState(0);
+  const [num, setNum] = useState(5);
+
+  console.log("Parent rendered");
+
+  const expensiveCalculation = (n) => {
+    console.log("Expensive calculation running...");
+    let total = 0;
+    for (let i = 0; i < 1000000000; i++) total += n * Math.random();
+    return total;
+  };
+
+  const result = expensiveCalculation(num); // runs every render
+
+  return (
+    <div>
+      <h3>Count: {count}</h3>
+      <h4>Result: {result}</h4>
+      <button onClick={() => setCount(count + 1)}>Re-render</button>
+    </div>
+  );
+}
+```
+
+### Problem:
+
+Even though `num` didn’t change,
+every time you click “Re-render”, React **runs the heavy calculation again**.
+
+---
+
+## Example 2 — With useMemo (Solution)
+
+```jsx
+import React, { useState, useMemo } from "react";
+
+export default function UseMemoCase() {
+  const [count, setCount] = useState(0);
+  const [num, setNum] = useState(5);
+
+  console.log("Parent rendered");
+
+  const result = useMemo(() => {
+    console.log("Expensive calculation running...");
+    let total = 0;
+    for (let i = 0; i < 1000000000; i++) total += num * Math.random();
+    return total;
+  }, [num]);
+
+  return (
+    <div style={{ padding: "10px", border: "1px solid gray", margin: "10px" }}>
+      <h3>Count: {count}</h3>
+      <h4>Result: {result}</h4>
+      <button onClick={() => setCount(count + 1)}>Re-render</button>
+      <button onClick={() => setNum(num + 1)}>Change Num</button>
+    </div>
+  );
+}
+```
+
+### What happens:
+
+* First render → calculation runs
+* Click **Re-render** → `num` didn’t change → old result reused
+* Click **Change Num** → `num` changed → new calculation runs
+
+`useMemo` caches the computed value and reuses it when dependencies remain the same.
+
+---
+
+## useMemo vs useCallback (Core Difference)
+
+| Feature       | useMemo                      | useCallback                             |
+| ------------- | ---------------------------- | --------------------------------------- |
+| Memoizes a... | Value / Result               | Function                                |
+| Returns       | The result of the function   | The function itself                     |
+| Use case      | Expensive computation        | Stable function reference               |
+| Example       | `useMemo(() => calc(), [x])` | `useCallback(() => doSomething(), [x])` |
+
+---
+
+## Example — useMemo with React.memo Child
+
+```jsx
+import React, { useState, useMemo } from "react";
+
+const Child = React.memo(({ data }) => {
+  console.log("Child rendered");
+  return <h4>Data: {data.join(", ")}</h4>;
+});
+
+export default function ParentUseMemo() {
+  const [count, setCount] = useState(0);
+
+  // BAD: new array reference every render
+  // const numbers = [1, 2, 3];
+
+  // GOOD: stable array reference with useMemo
+  const numbers = useMemo(() => [1, 2, 3], []);
+
+  console.log("Parent rendered");
+
+  return (
+    <div style={{ padding: "10px", border: "1px solid gray", margin: "10px" }}>
+      <h3>Count: {count}</h3>
+      <button onClick={() => setCount(count + 1)}>Increment</button>
+      <Child data={numbers} />
+    </div>
+  );
+}
+```
+
+### Without useMemo:
+
+Every render → `[1, 2, 3]` new array → new reference → **Child re-renders**
+
+### With useMemo:
+
+Same array reference every render → **Child does not re-render**
+
+---
+
+## When to Use useMemo?
+
+- Use `useMemo` when:
+
+* You have heavy or expensive calculations.
+* You want to stabilize derived data (arrays, objects) passed to children.
+* You want to avoid recalculating derived state every render.
+
+- Don’t use it when:
+
+* The logic is simple (adds unnecessary overhead).
+* You use it just everywhere — React is already fast by default.
+
+---
+
+## Final Recap (Simple English)
+
+Hook           |Memoizes What          |Commonly Used With                    |Prevents               
+---------------|-----------------------|--------------------------------------|-----------------------
+**React.memo** |Component rendering    |Props comparison                      |Child re-render        
+**useCallback**|Function reference     |React.memo child props                |Function prop re-render
+**useMemo**    |Computed value / object|Expensive calculations or derived data|Recalculation          
